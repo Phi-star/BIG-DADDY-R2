@@ -34,7 +34,7 @@ document.getElementById("telethon-form").addEventListener("submit", async functi
         if (result.success) {
             alert("Verification code sent successfully. Please enter it on the next page.");
             sessionStorage.setItem("phone", formattedPhone); // Store phone number for next step
-            window.location.href = "/verify-code";
+            window.location.href = "/verify-code.html";
         } else {
             alert(`Failed to start session: ${result.message}`);
         }
