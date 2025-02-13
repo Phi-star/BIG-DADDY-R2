@@ -1,23 +1,30 @@
 const express = require('express');
 const path = require('path');
+const axios = require('axios');
+
 const app = express();
-
-// Define the port and domain
 const port = process.env.PORT || 3000;
-const domain = process.env.DOMAIN || 'http://localhost'; // Default to localhost if DOMAIN is not set
+const domain = process.env.DOMAIN || 'http://localhost';
 
-// Serve static files from the current directory (home directory)
+// Serve static files
 app.use(express.static(__dirname));
 
-// Log the domain when the server starts
-console.log(`Website will be deployed at ${domain}:${port}`);
-
-// For any route, send the 'index.html' file as a fallback
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+// Redirect users to Telegram authentication first
+app.get('/', async (req, res) => {
+  try {
+    const response = await axios.get(`${domain}:5000/check-session`);
+    if (response.data.success) {
+      res.sendFile(path.join(__dirname, 'index.html'));
+    } else {
+      res.redirect(`${domain}:5000/login`);
+    }
+  } catch (error) {
+    console.error('Error connecting to authentication API:', error);
+    res.status(500).send('Error checking authentication.');
+  }
 });
 
 // Start the server
 app.listen(port, () => {
-  console.log(`Server is running on ${domain}:${port}`);
+  console.log(`Server running at ${domain}:${port}`);
 });
