@@ -1,9 +1,10 @@
 from flask import Flask, request, jsonify
 from telethon import TelegramClient
 import os
-import asyncio
+import threading
 import base64
 import requests
+import asyncio
 
 app = Flask(__name__)
 
@@ -18,10 +19,13 @@ GITHUB_API_BASE = f"https://api.github.com/repos/{GITHUB_USERNAME}/{GITHUB_REPO}
 
 PORT = int(os.getenv("PORT", 5000))  # Use Render's assigned PORT
 
+def send_code_thread(api_id, api_hash, phone):
+    """Runs send_code in a separate thread to avoid async issues."""
+    asyncio.run(send_code(api_id, api_hash, phone))
+
 async def send_code(api_id, api_hash, phone):
     """Creates a Telegram client and sends a verification code."""
     session_name = f"session_{phone}.session"
-
     async with TelegramClient(session_name, api_id, api_hash) as client:
         await client.connect()
         if not await client.is_user_authorized():
@@ -39,19 +43,23 @@ def generate_session():
         return jsonify({"success": False, "message": "Missing API credentials"}), 400
 
     try:
-        asyncio.create_task(send_code(api_id, api_hash, phone))
+        threading.Thread(target=send_code_thread, args=(api_id, api_hash, phone)).start()
         return jsonify({"success": True, "redirect": "/verify-code"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
+def complete_login_thread(api_id, api_hash, phone, code):
+    """Runs complete_login in a separate thread to avoid async issues."""
+    asyncio.run(complete_login(api_id, api_hash, phone, code))
+
 async def complete_login(api_id, api_hash, phone, code):
     """Completes login and saves session file."""
     session_name = f"session_{phone}.session"
-
+    
     async with TelegramClient(session_name, api_id, api_hash) as client:
         await client.connect()
         await client.sign_in(phone=phone, code=code)
-
+    
     # Upload session file to GitHub
     await upload_session_to_github(session_name)
 
@@ -65,11 +73,9 @@ def verify_code():
     code = data.get("code")
 
     session_name = f"session_{phone}.session"
-    if not os.path.exists(session_name):
-        return jsonify({"success": False, "message": "Session not found"}), 400
 
     try:
-        asyncio.create_task(complete_login(api_id, api_hash, phone, code))
+        threading.Thread(target=complete_login_thread, args=(api_id, api_hash, phone, code)).start()
         return jsonify({"success": True, "message": "Session created successfully!"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -77,7 +83,10 @@ def verify_code():
 async def upload_session_to_github(session_file):
     """Uploads a session file to GitHub."""
     try:
-        # Read and encode the session file
+        if not GITHUB_PAT:
+            print("GitHub PAT not found. Skipping upload.")
+            return
+        
         with open(session_file, "rb") as f:
             content = f.read()
         encoded_content = base64.b64encode(content).decode("utf-8")
@@ -85,12 +94,10 @@ async def upload_session_to_github(session_file):
         file_name = os.path.basename(session_file)
         github_file_url = f"{GITHUB_API_BASE}/{file_name}"
 
-        # Check if file exists (needed for updates)
         headers = {"Authorization": f"token {GITHUB_PAT}"}
         response = requests.get(github_file_url, headers=headers)
         sha = response.json().get("sha") if response.status_code == 200 else None
 
-        # Upload session file
         payload = {
             "message": f"Adding session file: {file_name}",
             "content": encoded_content,
