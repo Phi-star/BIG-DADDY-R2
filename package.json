@@ -1,0 +1,14 @@
+{
+  "name": "my-website",
+  "version": "2.0.0",
+  "description": "My Simple Website",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.17.1"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "phistar",
+  "license": "MIT"
+}
