@@ -1,32 +1,23 @@
 const express = require('express');
 const path = require('path');
-const { exec } = require('child_process');
-
 const app = express();
+
+// Define the port and domain
 const port = process.env.PORT || 3000;
-const domain = process.env.DOMAIN || 'http://localhost';
+const domain = process.env.DOMAIN || 'http://localhost'; // Default to localhost if DOMAIN is not set
 
-// Step 1: Install Python dependencies from Flask/requirements.txt
-exec('pip install -r Flask/requirements.txt', (error, stdout, stderr) => {
-    if (error) {
-        console.error(`Error installing dependencies: ${error.message}`);
-        return;
-    }
-    if (stderr) {
-        console.error(`stderr: ${stderr}`);
-    }
-    console.log(`Dependencies installed:\n${stdout}`);
+// Serve static files from the current directory (home directory)
+app.use(express.static(__dirname));
 
-    // Step 2: Start the Express server after installing dependencies
-    app.use(express.static(__dirname));
+// Log the domain when the server starts
+console.log(`Website will be deployed at ${domain}:${port}`);
 
-    console.log(`Website will be deployed at ${domain}:${port}`);
+// For any route, send the 'index.html' file as a fallback
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
-    app.get('*', (req, res) => {
-        res.sendFile(path.join(__dirname, 'index.html'));
-    });
-
-    app.listen(port, () => {
-        console.log(`Server is running on ${domain}:${port}`);
-    });
+// Start the server
+app.listen(port, () => {
+  console.log(`Server is running on ${domain}:${port}`);
 });
